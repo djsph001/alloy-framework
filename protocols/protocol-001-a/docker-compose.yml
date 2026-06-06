@@ -1,0 +1,81 @@
+# docker-compose.yml — Modern Altar Tier (Dual RTX 3060, 12GB x 2)
+# Protocol 001-A compliant
+# This stack assumes NVIDIA Container Toolkit is installed and Docker
+# is configured for GPU passthrough (nvidia-container-runtime).
+
+services:
+  mycelial-query:
+    image: ollama/ollama:latest # swap for vLLM if preferred
+    container_name: mycelial-query
+    runtime: nvidia
+    environment:
+      # --- Model Selection ---
+      # Choose ONE of the following, matching your GGUF quant:
+      - OLLAMA_MODEL=command-r:35b-v0.1-q4_K_M   # 35B at 4-bit ≈ 20GB VRAM
+      # - OLLAMA_MODEL=llama3:70b-instruct-q4_0   # 70B at 4-bit ≈ 38GB — exceeds
+      #                                             24GB, requires full offload
+      #                                             tuning; test before deploying
+      #                                             in a Harmonic event.
+
+      # --- Inference Parameters ---
+      # Temperature: kept low for proposer/synthesizer stability.
+      # The opposer role runs at higher temp via a separate call;
+      # this container default is for the "faithful" baseline.
+      - OLLAMA_TEMPERATURE=0.2
+
+      # Context window: 8k is the standard for adversarial rounds.
+      # Dual 3060s at 4-bit can push to 12k, but only if thermal
+      # headroom permits. 8k is the safe default.
+      - OLLAMA_NUM_CTX=8192
+
+      # --- GPU Splitting ---
+      - CUDA_VISIBLE_DEVICES=0,1
+      # Allow 2 parallel requests; keep only 1 model loaded at a time
+      # to avoid VRAM fragmentation across the 24GB ceiling.
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=1
+
+      # --- Consumer Ampere P2P workaround ---
+      # RTX 3060 ships with NVLink stripped and P2P disabled in driver.
+      # NCCL will attempt P2P by default and fail loudly. Disable it so
+      # the runtime falls back to host-mediated transfers cleanly.
+      - NCCL_P2P_DISABLE=1
+
+      # --- Tensor Core Utilization ---
+      # BF16 support is ON by default for Ampere when using
+      # appropriate quant formats (AWQ, EXL2, or GGUF with
+      # appropriate flags).  No extra flag needed at this level;
+      # the runtime selects the fastest available precision.
+
+      # --- Re-prompt Budget (Protocol 014) ---
+      # Extra headroom from Tensor Cores is NOT used to shorten
+      # the Faithful Cycle. It is used to run an internal
+      # "Self-Refutation Loop" before submission:
+      #   1. Generate initial response.
+      #   2. Prompt the same model with: "Identify the weakest
+      #      assumption in your previous answer."
+      #   3. If a weakness is found, re-generate ONCE.
+      # This is configured in the orchestration layer (your
+      # Python script or Protocol 007 logic), not here.
+      # Set this env var so your orchestrator can read it:
+      - SELF_REFUTATION_ENABLED=true
+
+    volumes:
+      # Model cache: keep models local, not pulled from cloud.
+      - ./models:/root/.ollama/models
+      # Orchestrator scripts: mount your local dev directory.
+      - ./orchestrator:/orchestrator
+
+    ports:
+      - "11434:11434" # Ollama API
+
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0", "1"]
+              capabilities: [gpu]
+
+    # Restart policy: critical for unattended Altar nodes.
+    restart: unless-stopped

@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Lakou: Coherence Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #121210; color: #e5e5e0; }
+        .mono { font-family: 'Fira Code', monospace; }
+        .border-tempered { border-color: #4b5563; }
+        .text-bronze { color: #b45309; }
+        .bg-bronze { background-color: #b45309; }
+        .card-panel { background-color: #1c1c18; border: 1px solid #33332d; }
+    </style>
+</head>
+<body class="antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-[#1c1c18] border-b border-[#33332d] py-4 px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3">
+            <div class="w-3 h-3 rounded-full bg-green-500 animate-ping"></div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight uppercase mono">Digital Lakou // Coherence Dashboard</h1>
+                <p class="text-xs text-gray-500">Systemic Status: <span id="system-status" class="text-green-500 font-bold">NOMINAL_ALIGNMENT</span></p>
+            </div>
+        </div>
+        <div class="flex items-center gap-6 text-xs mono text-gray-400">
+            <div>NETWORK HASH: <span class="text-gray-200">sha256:d8a9c394...</span></div>
+            <div>ACTIVE NODES: <span class="text-gray-200" id="active-nodes-count">3</span></div>
+            <div>UTC TIME: <span id="clock" class="text-gray-200">2026-06-06 00:00:00</span></div>
+        </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="flex-grow p-6 grid grid-cols-1 xl:grid-cols-4 gap-6">
+
+        <!-- Column 1: Altar Physical Layer & Simulator -->
+        <div class="flex flex-col gap-6 xl:col-span-1">
+            <!-- Physical Layer -->
+            <div class="card-panel rounded-lg p-5 flex flex-col flex-grow">
+                <div class="flex justify-between items-center mb-4 border-b border-[#33332d] pb-2">
+                    <h2 class="text-sm font-bold uppercase tracking-wider mono text-gray-400">Physical Layer (001-A)</h2>
+                    <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded mono">ALTAR</span>
+                </div>
+                
+                <!-- Nodes Telemetry list -->
+                <div class="flex flex-col gap-4 flex-grow" id="nodes-container">
+                    <!-- Dynamic Nodes Inserted Here -->
+                </div>
+            </div>
+
+            <!-- Calibration Status Panel (Linked to version_compatibility) -->
+            <div class="card-panel rounded-lg p-5">
+                <div class="flex justify-between items-center mb-3 border-b border-[#33332d] pb-2">
+                    <h2 class="text-sm font-bold uppercase tracking-wider mono text-gray-400">Calibration Status</h2>
+                    <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded mono">90D CLOCK</span>
+                </div>
+                <div class="flex flex-col gap-3 text-xs mono" id="calibration-container">
+                    <!-- Dynamic Calibration Info -->
+                </div>
+            </div>
+
+            <!-- Interactive Controller Simulator Panel -->
+            <div class="card-panel rounded-lg p-5">
+                <h2 class="text-sm font-bold uppercase tracking-wider mono text-gray-400 mb-3 border-b border-[#33332d] pb-2">Event Simulator</h2>
+                <div class="flex flex-col gap-3">
+                    <button onclick="triggerThermalBreach()" class="w-full text-xs font-semibold py-2.5 px-4 rounded bg-red-950 text-red-200 border border-red-800 hover:bg-red-900 transition-all">
+                        Simulate Thermal Breach (Boston)
+                    </button>
+                    <button onclick="triggerDispute()" class="w-full text-xs font-semibold py-2.5 px-4 rounded bg-amber-950 text-amber-200 border border-amber-800 hover:bg-amber-900 transition-all">
+                        Simulate Telemetry Dispute (018)
+                    </button>
+                    <button onclick="resetSimulation()" class="w-full text-xs font-semibold py-2 px-4 rounded bg-gray-800 text-gray-200 hover:bg-gray-700 transition-all mono">
+                        Reset System State
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 2 & 3: Central Operations (017 Leases, 013 Broadcasts, 018 Disputes) -->
+        <div class="flex flex-col gap-6 xl:col-span-2">
+            
+            <!-- 017 Lease State Matrix -->
+            <div class="card-panel rounded-lg p-5">
+                <div class="flex justify-between items-center mb-4 border-b border-[#33332d] pb-2">
+                    <h2 class="text-sm font-bold uppercase tracking-wider mono text-gray-400">Active Leases (Protocol 017)</h2>
+                    <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded mono">GOVERNANCE</span>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="leases-container">
+                    <!-- Dynamic Leases Inserted Here -->
+                </div>
+            </div>
+
+            <!-- 018 Dispute Arena -->
+            <div class="card-panel rounded-lg p-5 flex-grow">
+                <div class="flex justify-between items-center mb-4 border-b border-[#33332d] pb-2">
+                    <h2 class="text-sm font-bold uppercase tracking-wider mono text-gray-400">Dispute Arena (Protocol 018)</h2>
+                    <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded mono">ARBITRATION</span>
+                </div>
+                <div class="flex flex-col gap-3 h-48 overflow-y-auto pr-2 scrollbar-thin" id="disputes-log">
+                    <!-- Disputes Display -->
+                </div>
+            </div>
+
+            <!-- 013 Broadcast Ledger -->
+            <div class="card-panel rounded-lg p-5">
+                <div class="flex justify-between items-center mb-4 border-b border-[#33332d] pb-2">
+                    <h2 class="text-sm font-bold uppercase tracking-wider mono text-gray-400">Shared Mycelium Ledger (Protocol 013)</h2>
+                    <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded mono">LEDGER</span>
+                </div>
+                <div class="mono text-xs bg-black bg-opacity-40 p-4 rounded border border-[#33332d] h-48 overflow-y-auto flex flex-col gap-2 scrollbar-thin" id="ledger-log">
+                    <!-- Dynamic Ledger Blocks -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Column 4: Reputation & Economics (Protocol 019) -->
+        <div class="flex flex-col gap-6 xl:col-span-1">
+            <div class="card-panel rounded-lg p-5 flex flex-col flex-grow">
+                <div class="flex justify-between items-center mb-4 border-b border-[#33332d] pb-2">
+                    <h2 class="text-sm font-bold uppercase tracking-wider mono text-gray-400">Reputation Stakes (019)</h2>
+                    <span class="text-xs bg-gray-800 text-gray-300 px-2 py-0.5 rounded mono">INCENTIVES</span>
+                </div>
+                
+                <!-- Conductor Leaderboard -->
+                <div class="flex flex-col gap-4 flex-grow" id="reputation-container">
+                    <!-- Dynamic Reputation Cards -->
+                </div>
+
+                <!-- Graphic/Visual Stake Ratio -->
+                <div class="mt-6 pt-4 border-t border-[#33332d]">
+                    <h3 class="text-xs font-bold uppercase tracking-wider mono text-gray-500 mb-2">Total Network Stake</h3>
+                    <div class="w-full bg-gray-800 rounded-full h-3 overflow-hidden flex">
+                        <div id="stake-active-bar" class="bg-green-600 h-full transition-all" style="width: 85%;"></div>
+                        <div id="stake-locked-bar" class="bg-amber-600 h-full transition-all" style="width: 15%;"></div>
+                        <div id="stake-slashed-bar" class="bg-red-600 h-full transition-all" style="width: 0%;"></div>
+                    </div>
+                    <div class="flex justify-between text-[10px] mono text-gray-500 mt-2">
+                        <div>ACTIVE: <span id="stake-active-val">2200</span> REP</div>
+                        <div>LOCKED: <span id="stake-locked-val">400</span> REP</div>
+                        <div>BURNED: <span id="stake-slashed-val">0</span> REP</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Scripts and Logic -->
+    <script>
+        // System clock
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('clock').textContent = now.toISOString().replace('T', ' ').substring(0, 19);
+        }, 1000);
+
+        // Core Data States
+        let nodes = [
+            { id: "altar_boston_01", location: "Boston", core: 62.4, vram: 81.2, power: 72.1, state: "NOMINAL", cooldown: 0, k: 0.04 },
+            { id: "altar_montreal_01", location: "Montreal", core: 58.1, vram: 78.4, power: 65.0, state: "NOMINAL", cooldown: 0, k: 0.05 },
+            { id: "altar_port_au_prince_01", location: "Haiti", core: 68.2, vram: 85.0, power: 79.5, state: "NOMINAL", cooldown: 0, k: 0.03 }
+        ];
+
+        let calibrators = [
+            { id: "altar_boston_01", lastCalibrated: "2026-05-15", validity: "78 days remaining", status: "VALID" },
+            { id: "altar_montreal_01", lastCalibrated: "2026-05-22", validity: "85 days remaining", status: "VALID" },
+            { id: "altar_port_au_prince_01", lastCalibrated: "2026-03-10", validity: "12 days remaining", status: "WARNING" }
+        ];
+
+        let leases = [
+            { phase: "PHASE_3_SYNTHESIS", holder: "altar_boston_01", time_remaining: 2451, status: "LOCKED_ACTIVE" },
+            { phase: "PHASE_4_CONSENSUS", holder: "altar_montreal_01", time_remaining: 1823, status: "LOCKED_ACTIVE" }
+        ];
+
+        let disputes = [
+            { id: "DSP-00412", complainant: "altar_montreal_01", accused: "altar_port_au_prince_01", issue: "ACCUSED_TELEMETRY_SPOOF_HEARTBEAT", vote: "RESOLVED_NOMINAL", details: "Gemini and Claude cross-examine. Public key attestation valid." }
+        ];
+
+        let conductors = [
+            { name: "Dale Joseph (Boston)", score: 980, stake: 500, status: "ACTIVE" },
+            { name: "Bob (Montreal)", score: 940, stake: 400, status: "ACTIVE" },
+            { name: "Alice (Haiti)", score: 890, stake: 300, status: "ACTIVE" }
+        ];
+
+        let ledger = [
+            { block: 184, hash: "sha256:d8a9c394...", msg: "PHASE_2_SPARRING complete; verified GPG signatures.", type: "SYSTEM" },
+            { block: 185, hash: "sha256:f83ac713...", msg: "State transaction transition to PHASE_3_SYNTHESIS for altar_boston_01.", type: "LEASE" }
+        ];
+
+        // --- Render Functions ---
+
+        function renderNodes() {
+            const container = document.getElementById('nodes-container');
+            container.innerHTML = '';
+            nodes.forEach(node => {
+                let stateColor = "text-green-500";
+                let bgBorder = "border-gray-800";
+                if (node.state === "WARNING") {
+                    stateColor = "text-amber-500";
+                    bgBorder = "border-amber-900";
+                } else if (node.state === "SUSPENDED" || node.state === "RECOVERY") {
+                    stateColor = "text-red-500";
+                    bgBorder = "border-red-900";
+                }
+
+                container.innerHTML += `
+                    <div class="p-4 rounded border ${bgBorder} bg-black bg-opacity-20 flex flex-col gap-3">
+                        <div class="flex justify-between items-center">
+                            <div>
+                                <span class="text-xs font-bold uppercase mono text-gray-300">${node.id}</span>
+                                <div class="text-[10px] text-gray-500">${node.location} // Calibrated k: ${node.k}</div>
+                            </div>
+                            <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded mono bg-gray-900 ${stateColor}">${node.state}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-center text-xs mono">
+                            <div class="bg-gray-900 bg-opacity-50 p-2 rounded">
+                                <div class="text-[9px] text-gray-500">CORE</div>
+                                <div class="font-bold mt-1 text-gray-300">${node.core.toFixed(1)}°C</div>
+                            </div>
+                            <div class="bg-gray-900 bg-opacity-50 p-2 rounded">
+                                <div class="text-[9px] text-gray-500">VRAM</div>
+                                <div class="font-bold mt-1 text-gray-300 ${node.vram >= 98.0 ? 'text-red-500 animate-pulse' : ''}">${node.vram.toFixed(1)}°C</div>
+                            </div>
+                            <div class="bg-gray-900 bg-opacity-50 p-2 rounded">
+                                <div class="text-[9px] text-gray-500">POWER</div>
+                                <div class="font-bold mt-1 text-gray-300">${node.power.toFixed(1)}%</div>
+                            </div>
+                        </div>
+                        ${node.cooldown > 0 ? `
+                            <div class="w-full bg-gray-900 rounded h-1.5 overflow-hidden">
+                                <div class="bg-red-600 h-full" style="width: ${(node.cooldown/300)*100}%;"></div>
+                            </div>
+                            <div class="text-[9px] mono text-gray-500 flex justify-between">
+                                <span>NEWTONIAN COOLDOWN ACTIVE</span>
+                                <span>${node.cooldown}s</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            document.getElementById('active-nodes-count').textContent = nodes.filter(n => n.state === "NOMINAL").length;
+        }
+
+        function renderCalibration() {
+            const container = document.getElementById('calibration-container');
+            container.innerHTML = '';
+            calibrators.forEach(cal => {
+                let badgeColor = "bg-green-950 text-green-400 border-green-800";
+                if (cal.status === "WARNING") {
+                    badgeColor = "bg-amber-950 text-amber-300 border-amber-800 animate-pulse";
+                } else if (cal.status === "EXPIRED") {
+                    badgeColor = "bg-red-950 text-red-400 border-red-800";
+                }
+                container.innerHTML += `
+                    <div class="p-2.5 rounded border border-[#33332d] bg-black bg-opacity-10 flex justify-between items-center">
+                        <div>
+                            <div class="text-[10px] text-gray-400 font-bold">${cal.id}</div>
+                            <div class="text-[9px] text-gray-500">Last Carrington Run: ${cal.lastCalibrated}</div>
+                        </div>
+                        <div class="text-[9px] font-bold px-2 py-0.5 rounded border ${badgeColor}">${cal.validity}</div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderLeases() {
+            const container = document.getElementById('leases-container');
+            container.innerHTML = '';
+            leases.forEach(lease => {
+                let statusBg = "bg-green-950 text-green-300 border-green-800";
+                if (lease.status === "REVOKED_SUSPENDED") {
+                    statusBg = "bg-red-950 text-red-200 border-red-800";
+                }
+
+                container.innerHTML += `
+                    <div class="p-4 rounded border ${statusBg} flex flex-col gap-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold tracking-tight uppercase mono">${lease.phase}</span>
+                            <span class="text-[9px] px-2 py-0.5 rounded mono uppercase bg-black bg-opacity-35">${lease.status}</span>
+                        </div>
+                        <div class="text-xs text-gray-400 mono">
+                            HOLDER: <span class="text-gray-200 font-semibold">${lease.holder}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-[10px] mono pt-2 border-t border-white border-opacity-10 text-gray-500">
+                            <span>LEASE TTL</span>
+                            <span>${Math.floor(lease.time_remaining / 60)}m ${lease.time_remaining % 60}s</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function renderDisputes() {
+            const log = document.getElementById('disputes-log');
+            log.innerHTML = '';
+            disputes.forEach(disp => {
+                let badge = "bg-green-950 text-green-300 border-green-800";
+                if (disp.vote === "ACTIVE_ARBITRATING") {
+                    badge = "bg-amber-950 text-amber-200 border-amber-800 animate-pulse";
+                }
+                log.innerHTML += `
+                    <div class="p-3.5 rounded border border-[#33332d] bg-black bg-opacity-20 flex flex-col gap-2 text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold mono text-bronze">${disp.id}</span>
+                            <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded mono border ${badge}">${disp.vote}</span>
+                        </div>
+                        <p class="text-gray-400"><strong class="text-gray-300 mono">${disp.complainant}</strong> vs <strong class="text-gray-300 mono">${disp.accused}</strong></p>
+                        <p class="text-[10px] text-gray-500 italic font-mono bg-black bg-opacity-30 p-2 rounded border border-[#2b2b25]">${disp.details}</p>
+                    </div>
+                `;
+            });
+        }
+
+        function renderReputation() {
+            const container = document.getElementById('reputation-container');
+            container.innerHTML = '';
+            conductors.forEach(cond => {
+                let textCol = "text-green-500";
+                if (cond.status === "SUSPENDED_SLASHED") textCol = "text-red-500 animate-pulse";
+                
+                container.innerHTML += `
+                    <div class="p-3.5 rounded border border-[#33332d] bg-black bg-opacity-20 flex flex-col gap-2 text-xs">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-gray-300">${cond.name}</span>
+                            <span class="font-mono font-bold ${textCol}">${cond.score} REP</span>
+                        </div>
+                        <div class="flex justify-between text-[10px] mono text-gray-500">
+                            <span>STAKED rep:</span>
+                            <span>${cond.stake} REP</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Update bar chart stakes
+            const totalActive = conductors.filter(c => c.status === "ACTIVE").reduce((sum, c) => sum + c.stake, 0);
+            const totalLocked = leases.filter(l => l.status === "LOCKED_ACTIVE").length * 200; // Mock stake lock
+            const totalSlashed = conductors.filter(c => c.status === "SUSPENDED_SLASHED").reduce((sum, c) => sum + c.stake, 0);
+
+            document.getElementById('stake-active-bar').style.width = `${(totalActive/2200)*100}%`;
+            document.getElementById('stake-locked-bar').style.width = `${(totalLocked/2200)*100}%`;
+            document.getElementById('stake-slashed-bar').style.width = `${(totalSlashed/2200)*100}%`;
+
+            document.getElementById('stake-active-val').textContent = totalActive;
+            document.getElementById('stake-locked-val').textContent = totalLocked;
+            document.getElementById('stake-slashed-val').textContent = totalSlashed;
+        }
+
+        function renderLedger() {
+            const log = document.getElementById('ledger-log');
+            log.innerHTML = '';
+            ledger.forEach(block => {
+                let tag = "[INFO]";
+                let textClass = "text-gray-400";
+                if (block.type === "LEASE") {
+                    tag = "[LEASE_ACTION]";
+                    textClass = "text-green-400";
+                } else if (block.type === "CRITICAL") {
+                    tag = "[CRITICAL_ALARM]";
+                    textClass = "text-red-500 font-semibold animate-pulse";
+                } else if (block.type === "DISPUTE") {
+                    tag = "[DISPUTE_EVENT]";
+                    textClass = "text-amber-500";
+                }
+
+                log.innerHTML += `
+                    <div class="border-b border-[#2b2b25] pb-2 last:border-b-0">
+                        <div class="flex justify-between text-[10px] text-gray-500 mb-1">
+                            <span>BLOCK ${block.block} // ${block.hash}</span>
+                            <span>${tag}</span>
+                        </div>
+                        <p class="${textClass}">${block.msg}</p>
+                    </div>
+                `;
+            });
+            // Auto scroll to bottom
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // --- System Loop (Simulation Jitter) ---
+
+        setInterval(() => {
+            nodes.forEach(node => {
+                if (node.state === "NOMINAL") {
+                    node.core += (Math.random() - 0.5) * 0.4;
+                    node.vram += (Math.random() - 0.5) * 0.8;
+                    node.power += (Math.random() - 0.5) * 1.5;
+                    // Cap thresholds
+                    if (node.core > 75.0) node.core = 74.0;
+                    if (node.vram > 91.0) node.vram = 90.0;
+                } else if (node.state === "RECOVERY") {
+                    node.vram -= (Math.random() * 0.8 + 1.2);
+                    node.core -= (Math.random() * 0.5 + 0.8);
+                    node.cooldown -= 10;
+                    if (node.vram <= 91.0) {
+                        node.vram = 91.0;
+                        node.state = "NOMINAL";
+                        node.cooldown = 0;
+                        appendLedger("altar_boston_01 successfully cooled below nominal threshold. State transitioned to NOMINAL.", "LEASE");
+                    }
+                }
+            });
+
+            leases.forEach(lease => {
+                if (lease.time_remaining > 0 && lease.status !== "REVOKED_SUSPENDED") {
+                    lease.time_remaining--;
+                }
+            });
+
+            renderNodes();
+            renderLeases();
+        }, 1000);
+
+        function appendLedger(msg, type) {
+            const lastBlock = ledger[ledger.length - 1].block;
+            const mockHash = "sha256:" + Math.random().toString(36).substring(2, 10) + "...";
+            ledger.push({ block: lastBlock + 1, hash: mockHash, msg, type });
+            renderLedger();
+        }
+
+        // --- Simulation Event Handlers ---
+
+        function triggerThermalBreach() {
+            // Find Boston Node
+            const boston = nodes.find(n => n.id === "altar_boston_01");
+            if (boston.state === "SUSPENDED" || boston.state === "RECOVERY") return;
+
+            appendLedger("ALERT: Intensive multi-model sparring run detected. Heavy GDDR6X load on altar_boston_01.", "SYSTEM");
+            
+            // Spike Temperatures
+            boston.vram = 102.5;
+            boston.core = 84.1;
+            boston.power = 97.4;
+            boston.state = "SUSPENDED";
+            
+            document.getElementById('system-status').textContent = "SUSPENDED_BY_THERMAL_BREACH";
+            document.getElementById('system-status').className = "text-red-500 font-bold animate-pulse";
+
+            appendLedger("CRITICAL: GPU VRAM Temp (102.5°C) exceeded threshold 98.0°C on altar_boston_01.", "CRITICAL");
+
+            // Cascading Protocol 017 Revocation
+            setTimeout(() => {
+                const activeLease = leases.find(l => l.holder === "altar_boston_01");
+                if (activeLease) {
+                    activeLease.status = "REVOKED_SUSPENDED";
+                    activeLease.time_remaining = 0;
+                    appendLedger("017 ENFORCEMENT: Active lease for PHASE_3_SYNTHESIS revoked from compromised conductor Dale Joseph.", "LEASE");
+                }
+                renderLeases();
+            }, 1000);
+
+            // Slashed stakes under 019
+            setTimeout(() => {
+                const dale = conductors.find(c => c.name.includes("Dale"));
+                dale.score -= 200; // Slashed as per updated Protocol 019
+                dale.status = "SUSPENDED_SLASHED";
+                appendLedger("019 ENFORCEMENT: Conductor Dale Joseph penalized -200 REP for thermal breach execution failure. Penalized stake burned.", "CRITICAL");
+                renderReputation();
+            }, 2000);
+
+            // Newtonian Recovery Kick-off
+            setTimeout(() => {
+                boston.state = "RECOVERY";
+                boston.cooldown = 300;
+                appendLedger("001-A COOLDOWN: Executing Newtonian cooling decay on altar_boston_01. Calibration constant set to 0.04.", "SYSTEM");
+                renderNodes();
+            }, 4000);
+        }
+
+        function triggerDispute() {
+            // Check if active dispute exists
+            if (disputes.some(d => d.vote === "ACTIVE_ARBITRATING")) return;
+
+            const newDispute = {
+                id: "DSP-00413",
+                complainant: "altar_montreal_01",
+                accused: "altar_port_au_prince_01",
+                issue: "ACCUSED_TELEMETRY_SPOOF_HEARTBEAT",
+                vote: "ACTIVE_ARBITRATING",
+                details: "Analyzing public key attestations... Cross-examining model reports across Lakous."
+            };
+
+            disputes.push(newDispute);
+            renderDisputes();
+            appendLedger("DISPUTE: Montreal accuses Haiti of spoofing nominal metrics. Initiating 018 multi-model tiebreaker...", "DISPUTE");
+
+            // Simulate Model Voting after 4 seconds
+            setTimeout(() => {
+                const active = disputes.find(d => d.id === "DSP-00413");
+                active.vote = "RESOLVED_NOMINAL";
+                active.details = "Gemini & Claude find consensus. Hardware TPM signature verified. Haiti node validated as true NOMINAL state.";
+                
+                const haiti = conductors.find(c => c.name.includes("Alice"));
+                haiti.score += 50; // Bonus reputation for surviving false claim
+                
+                const montreal = conductors.find(c => c.name.includes("Bob"));
+                montreal.score -= 75; // Slashed for erroneous dispute as per updated 019 Table
+
+                appendLedger("018 CONSENSUS: Telemetry validated. Haiti cleared. Montreal penalized -75 REP (Stake Burned) for false trigger.", "DISPUTE");
+                renderDisputes();
+                renderReputation();
+            }, 4000);
+        }
+
+        function resetSimulation() {
+            nodes = [
+                { id: "altar_boston_01", location: "Boston", core: 62.4, vram: 81.2, power: 72.1, state: "NOMINAL", cooldown: 0, k: 0.04 },
+                { id: "altar_montreal_01", location: "Montreal", core: 58.1, vram: 78.4, power: 65.0, state: "NOMINAL", cooldown: 0, k: 0.05 },
+                { id: "altar_port_au_prince_01", location: "Haiti", core: 68.2, vram: 85.0, power: 79.5, state: "NOMINAL", cooldown: 0, k: 0.03 }
+            ];
+
+            calibrators = [
+                { id: "altar_boston_01", lastCalibrated: "2026-05-15", validity: "78 days remaining", status: "VALID" },
+                { id: "altar_montreal_01", lastCalibrated: "2026-05-22", validity: "85 days remaining", status: "VALID" },
+                { id: "altar_port_au_prince_01", lastCalibrated: "2026-03-10", validity: "12 days remaining", status: "WARNING" }
+            ];
+
+            leases = [
+                { phase: "PHASE_3_SYNTHESIS", holder: "altar_boston_01", time_remaining: 2451, status: "LOCKED_ACTIVE" },
+                { phase: "PHASE_4_CONSENSUS", holder: "altar_montreal_01", time_remaining: 1823, status: "LOCKED_ACTIVE" }
+            ];
+
+            disputes = [
+                { id: "DSP-00412", complainant: "altar_montreal_01", accused: "altar_port_au_prince_01", issue: "ACCUSED_TELEMETRY_SPOOF_HEARTBEAT", vote: "RESOLVED_NOMINAL", details: "Gemini and Claude cross-examine. Public key attestation valid." }
+            ];
+
+            conductors = [
+                { name: "Dale Joseph (Boston)", score: 980, stake: 500, status: "ACTIVE" },
+                { name: "Bob (Montreal)", score: 940, stake: 400, status: "ACTIVE" },
+                { name: "Alice (Haiti)", score: 890, stake: 300, status: "ACTIVE" }
+            ];
+
+            ledger = [
+                { block: 184, hash: "sha256:d8a9c394...", msg: "Systemic environment reset to initial nominal coordinates.", type: "SYSTEM" }
+            ];
+
+            document.getElementById('system-status').textContent = "NOMINAL_ALIGNMENT";
+            document.getElementById('system-status').className = "text-green-500 font-bold";
+
+            renderNodes();
+            renderCalibration();
+            renderLeases();
+            renderDisputes();
+            renderReputation();
+            renderLedger();
+        }
+
+        // Initial Render Execution
+        renderNodes();
+        renderCalibration();
+        renderLeases();
+        renderDisputes();
+        renderReputation();
+        renderLedger();
+
+    </script>
+</body>
+</html>

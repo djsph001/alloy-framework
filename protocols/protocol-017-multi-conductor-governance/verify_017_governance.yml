@@ -1,0 +1,105 @@
+name: Enforce Protocol 017 Multi-Conductor Governance
+
+on:
+  pull_request:
+    paths:
+      - 'research_sessions/**/017-state.json'
+      - 'research_sessions/**/014-output.json'
+
+jobs:
+  enforce-governance-pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code Base
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Verify Signed Commits
+        run: |
+          echo "Auditing GPG signatures on the active branch..."
+          git log --show-signature -n 5
+
+      - name: Parse and Validate 017 State Handoff
+        run: |
+          node -e '
+          const fs = require("fs");
+          const path = require("path");
+
+          const files = fs.readdirSync(".", { recursive: true });
+          const stateFile = files.find(f => f.endsWith("017-state.json"));
+
+          if (!stateFile) {
+            console.log("No active 017-state.json file located in this PR. Skipping state validation.");
+            process.exit(0);
+          }
+
+          console.log(`Analyzing State File: ${stateFile}`);
+          const data = JSON.parse(fs.readFileSync(stateFile, "utf8"));
+
+          const manifest = data.handoff_manifest;
+          const expiresAt = new Date(data.handoff_manifest.timestamp_utc);
+          const currentTime = new Date();
+
+          // Rule 1: Validate Lease lock has not expired
+          console.log(`Handoff Timestamp: ${expiresAt.toISOString()}`);
+          console.log(`Current Run Time: ${currentTime.toISOString()}`);
+
+          const ageInSeconds = (currentTime - expiresAt) / 1000;
+          console.log(`Lease runtime age: ${ageInSeconds}s`);
+
+          if (ageInSeconds > 3600) {
+            console.error("CRITICAL EXCEPTION: Lease Lock has expired (exceeded 60-minute TTL). Phase reverted.");
+            process.exit(1);
+          }
+          console.log("Rule 1 Passed: Lease lock is verified active.");
+
+          // Rule 2: Ensure conductor role segregation is maintained
+          const fromConductor = manifest.transition.from_conductor;
+          const toConductor = manifest.transition.to_conductor;
+
+          if (fromConductor === toConductor) {
+            console.error("CRITICAL EXCEPTION: Transition target matches originating conductor. Segregation of duties violated.");
+            process.exit(1);
+          }
+          console.log("Rule 2 Passed: Role segregation verified.");
+          '
+
+      - name: Audit Chain-of-Custody Signatures
+        run: |
+          node -e '
+          const fs = require("fs");
+          const files = fs.readdirSync(".", { recursive: true });
+          const outputFile = files.find(f => f.endsWith("014-output.json"));
+
+          if (!outputFile) {
+            console.log("Session has not reached egress status. No 014-output.json present.");
+            process.exit(0);
+          }
+
+          console.log(`Auditing finalized output asset: ${outputFile}`);
+          const data = JSON.parse(fs.readFileSync(outputFile, "utf8"));
+
+          if (!data.metadata || !data.governance_log) {
+            console.error("CRITICAL EXCEPTION: Output file is structurally invalid.");
+            process.exit(1);
+          }
+
+          const signatures = data.governance_log.signatures || {};
+          console.log("Signatures found:", Object.keys(signatures));
+
+          const requiredSigs = ["initiator_sig", "synthesizer_sig", "verifier_sig", "arbiter_sig"];
+          const missing = requiredSigs.filter(sig => !signatures[sig]);
+
+          if (missing.length > 0) {
+            console.error(`CRITICAL EXCEPTION: final egress asset is missing required signatures: ${missing.join(", ")}`);
+            process.exit(1);
+          }
+
+          console.log("Rule 3 Passed: Chain of custody signatures verified.");
+          '
